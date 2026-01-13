@@ -1,26 +1,43 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Primary Blue (The Anchor) */
+    --calma-blue-500: 56 132 255;
+    --calma-blue-50: 235 244 255;
+    --calma-blue-700: 36 92 190;
+
+    /* Neutrals (Light Mode) */
+    --background: 248 250 252; /* Soft White/Blue-Grey */
+    --foreground: 20 28 38; /* Deep Navy/Black */
+    --card: 255 255 255;
+    --card-foreground: 20 28 38;
+    
+    --border: 226 232 240;
+    --input: 226 232 240;
+    --ring: 56 132 255;
+  }
+
+  .dark {
+    /* Neutrals (Dark Mode - "Cool & Breathable") */
+    --background: 14 20 28; /* Deep Cool Navy */
+    --foreground: 235 240 246;
+    --card: 22 30 40; /* Softened Navy */
+    --card-foreground: 235 240 246;
+    
+    --border: 30 41 59;
+    --input: 30 41 59;
+    --ring: 56 132 255;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
