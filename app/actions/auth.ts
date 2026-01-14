@@ -188,3 +188,15 @@ export async function resetPin(newPin: string): Promise<AuthResponse> {
 
     return { success: true, message: "Pin reset successfully." };
 }
+
+/**
+ * 6. Update Email
+ */
+export async function updateEmail(newEmail: string): Promise<AuthResponse> {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser({ email: newEmail });
+
+    if (error) return { error: error.message };
+
+    return { success: true, message: "Confirmation link sent to new email." };
+}

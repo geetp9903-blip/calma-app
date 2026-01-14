@@ -1,5 +1,13 @@
 import { Document, Page, Text, View, StyleSheet, Font } from "@react-pdf/renderer";
-import { CategoryData, TrendData } from "@/app/actions/analytics";
+// import { CategoryData, TrendData } from "@/app/actions/analytics"; 
+
+// Define types locally/shim for report generation to decouple from live analytics changes
+interface CategoryData {
+    name: string;
+    value: number;
+    fill?: string;
+}
+
 
 // Register Font
 // Font.register({

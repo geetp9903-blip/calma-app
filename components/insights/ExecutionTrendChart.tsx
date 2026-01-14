@@ -1,97 +1,122 @@
 "use client";
 
-import { TrendDataPoint } from "@/app/actions/analytics";
+import { TrendDataPoint, InsightsMode } from "@/app/actions/analytics";
 import { cn } from "@/lib/utils";
+import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, isFuture } from "date-fns";
 
 interface ExecutionTrendChartProps {
     data: TrendDataPoint[];
+    mode: InsightsMode;
     height?: number;
 }
 
-export function ExecutionTrendChart({ data, height = 160 }: ExecutionTrendChartProps) {
-    if (!data || data.length === 0) return null;
+export function ExecutionTrendChart({ data, mode, height = 200 }: ExecutionTrendChartProps) {
+    const isEmpty = !data || data.length === 0;
 
-    const maxVal = Math.max(...data.map(d => Math.max(d.assigned, d.completed)), 5);
-    const chartHeight = height - 30; // space for x-axis
-    const chartWidth = 100; // percent
+    // "Empty/Sparse Data" State
+    // If we have very few data points (e.g. < 2 for month, < 2 for year), visuals might look weird.
+    // But "Until Now" logic implies we just show what we have.
+    // Real "Empty" is when NO data exists at all.
 
-    // Helper to scale Y
-    const getY = (val: number) => {
-        return chartHeight - (val / maxVal) * chartHeight;
-    };
+    if (isEmpty) {
+        return (
+            <div className="flex flex-col items-center justify-center space-y-2 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl" style={{ height }}>
+                <p className="text-sm font-medium text-slate-400">No activity recorded yet</p>
+                <p className="text-xs text-slate-400/70 text-center max-w-[200px]">
+                    Complete tasks to see your execution trend over time.
+                </p>
+            </div>
+        );
+    }
 
-    // Helper to generate path
-    const getPath = (type: 'assigned' | 'completed') => {
-        return data.map((d, i) => {
-            const x = (i / (data.length - 1)) * 100;
-            const y = getY(d[type]);
-            return `${x},${y}`;
-        }).join(" L ");
-    };
+    // Prepare ticks for X-Axis based on mode to ensure context?
+    // User wants: Month view X-Axis may show full range.
+    // We can generate the full range of dates for ticks, but data will only exist for some.
+    // Recharts XAxis `ticks` prop.
 
-    // Area Path
-    const assignedPath = `M 0,${chartHeight} L ` + getPath('assigned') + ` L 100,${chartHeight} Z`;
+    let ticks: string[] | undefined;
+    if (mode === 'month' && data.length > 0) {
+        // We can try to generate ticks for 1st, 15th, End?
+        // Or just let Recharts handle it.
+        // If we want to force the axis to span the whole month:
+        // const now = new Date();
+        // const start = startOfMonth(now);
+        // const end = endOfMonth(now);
+        // ... this requires syncing with server time which is tricky.
+        // Let's stick to auto-scaling "Until Now" which is safest execution-wise.
+    }
 
     return (
         <div className="w-full select-none" style={{ height }}>
-            {/* Legend / Header embedded if needed, but keeping it pure chart for now */}
-
-            <div className="relative w-full" style={{ height: chartHeight }}>
-                <svg className="w-full h-full overflow-visible" preserveAspectRatio="none" viewBox={`0 0 100 ${chartHeight}`}>
-                    {/* Grid lines */}
-                    <line x1="0" y1={getY(0)} x2="100" y2={getY(0)} stroke="#e2e8f0" vectorEffect="non-scaling-stroke" strokeDasharray="4 4" />
-                    <line x1="0" y1={getY(maxVal / 2)} x2="100" y2={getY(maxVal / 2)} stroke="#e2e8f0" vectorEffect="non-scaling-stroke" strokeDasharray="4 4" />
-
-                    {/* Assigned Line (Background layer) */}
-                    <path d={assignedPath} fill="url(#gradAssigned)" opacity="0.1" />
-                    <polyline
-                        points={getPath('assigned')}
-                        fill="none"
-                        stroke="#94a3b8" // Slate 400
-                        strokeWidth="2"
-                        vectorEffect="non-scaling-stroke"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-
-                    {/* Completed Line (Foreground layer) */}
-                    <polyline
-                        points={getPath('completed')}
-                        fill="none"
-                        stroke="#3b82f6" // Blue 500
-                        strokeWidth="3"
-                        vectorEffect="non-scaling-stroke"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    />
-
+            <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <defs>
-                        <linearGradient id="gradAssigned" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#94a3b8" stopOpacity={0.5} />
-                            <stop offset="100%" stopColor="#94a3b8" stopOpacity={0} />
+                        <linearGradient id="colorAssigned" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
                         </linearGradient>
                     </defs>
-                </svg>
-            </div>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis
+                        dataKey="date"
+                        axisLine={false}
+                        tickLine={false}
+                        tick={{ fill: '#94a3b8', fontSize: 10 }}
+                        dy={10}
+                        interval="preserveStartEnd"
+                        minTickGap={30}
+                    />
+                    <YAxis
+                        hide
+                        domain={[0, 'auto']}
+                    />
+                    <Tooltip
+                        content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                                const d = payload[0].payload as TrendDataPoint;
+                                return (
+                                    <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-xl rounded-lg p-3 text-xs opacity-[0.97]">
+                                        <p className="font-bold text-slate-700 dark:text-slate-200 mb-2">{d.fullDate}</p>
+                                        <div className="space-y-1">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-slate-300" />
+                                                <span className="text-slate-500">Assigned: {d.assigned}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-2 h-2 rounded-full bg-calma-blue-500" />
+                                                <span className="text-slate-700 dark:text-slate-300 font-bold">Completed: {d.completed}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            }
+                            return null;
+                        }}
+                    />
 
-            {/* X Axis Labels (First, Middle, Last) */}
-            <div className="flex justify-between text-[10px] text-slate-400 mt-2 px-1">
-                <span>{data[0]?.date}</span>
-                <span>{data[Math.floor(data.length / 2)]?.date}</span>
-                <span>{data[data.length - 1]?.date}</span>
-            </div>
+                    {/* Assigned: Area (Background, Lighter) */}
+                    <Area
+                        type="monotone"
+                        dataKey="assigned"
+                        stroke="#cbd5e1" // Slate 300
+                        strokeWidth={2}
+                        fillOpacity={1}
+                        fill="url(#colorAssigned)"
+                        activeDot={false}
+                    />
 
-            {/* Legend (Custom) */}
-            <div className="flex justify-center gap-4 mt-2">
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 bg-slate-400 rounded-full" />
-                    <span className="text-[10px] uppercase font-bold text-slate-400">Assigned</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-0.5 bg-calma-blue-500 rounded-full" />
-                    <span className="text-[10px] uppercase font-bold text-slate-500">Completed</span>
-                </div>
-            </div>
+                    {/* Completed: Line (Foreground, Stronger) */}
+                    <Line
+                        type="monotone"
+                        dataKey="completed"
+                        stroke="#3b82f6" // Blue 500
+                        strokeWidth={3}
+                        dot={false}
+                        activeDot={{ r: 4, strokeWidth: 0, fill: '#3b82f6' }}
+                    />
+                </ComposedChart>
+            </ResponsiveContainer>
         </div>
     );
 }
