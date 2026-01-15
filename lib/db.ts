@@ -7,6 +7,9 @@ const connectionString = process.env.DATABASE_URL || "";
 // Disable prefetch as it is not supported for "Transaction" mode pooler in Supabase usually
 // But broadly sticking to default unless issues arise. 
 // However, 'postgres' client is good.
-const client = postgres(connectionString, { prepare: false });
+const client = postgres(connectionString || "", {
+    prepare: false,
+    ssl: 'require'
+});
 
 export const db = drizzle(client, { schema });

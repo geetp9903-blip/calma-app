@@ -157,9 +157,9 @@ export async function loginWithPin(username: string, pin: string): Promise<AuthR
         userRecord = await db.query.users.findFirst({
             where: eq(users.username, username)
         });
-    } catch (dbError) {
+    } catch (dbError: any) {
         console.error("Login DB Lookup Error:", dbError);
-        return { error: "Service unavailable. Please check connection." };
+        return { error: `Service unavailable: ${dbError.message || dbError}` };
     }
 
     if (!userRecord) {
