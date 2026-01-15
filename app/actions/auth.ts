@@ -91,9 +91,16 @@ export async function registerProfile(username: string, pin: string): Promise<Au
     if (!user) return { error: "Session expired. Please verify email again." };
 
     // 2. Validate Username Uniqueness
-    const existingUser = await db.query.users.findFirst({
-        where: eq(users.username, username)
-    });
+    let existingUser;
+    try {
+        existingUser = await db.query.users.findFirst({
+            where: eq(users.username, username)
+        });
+    } catch (dbError) {
+        console.error("Username Check DB Error:", dbError);
+        // Fail safe: assume taken or just error out
+        return { error: "Could not validate username. Please try again." };
+    }
 
     if (existingUser) {
         return { error: "Username already taken." };
@@ -108,26 +115,30 @@ export async function registerProfile(username: string, pin: string): Promise<Au
     if (updateError) return { error: `Failed to set pin: ${updateError.message}` };
 
     // 4. Create Public Profile in Postgres
-    // Check if profile exists already? (Maybe partially created?)
-    const existingProfile = await db.query.users.findFirst({
-        where: eq(users.id, user.id)
-    });
-
-    if (existingProfile) {
-        // Update existing (maybe they backed out halfway before)
-        await db.update(users).set({
-            username,
-            pin_hash: hashPin(pin),
-            email: user.email!,
-        }).where(eq(users.id, user.id));
-    } else {
-        // Insert new
-        await db.insert(users).values({
-            id: user.id,
-            email: user.email!,
-            username,
-            pin_hash: hashPin(pin),
+    try {
+        const existingProfile = await db.query.users.findFirst({
+            where: eq(users.id, user.id)
         });
+
+        if (existingProfile) {
+            // Update existing (maybe they backed out halfway before)
+            await db.update(users).set({
+                username,
+                pin_hash: hashPin(pin),
+                email: user.email!,
+            }).where(eq(users.id, user.id));
+        } else {
+            // Insert new
+            await db.insert(users).values({
+                id: user.id,
+                email: user.email!,
+                username,
+                pin_hash: hashPin(pin),
+            });
+        }
+    } catch (dbError) {
+        console.error("Profile Creation DB Error:", dbError);
+        return { error: "Failed to create user profile. Please try again." };
     }
 
     revalidatePath("/dashboard");
@@ -141,9 +152,15 @@ export async function loginWithPin(username: string, pin: string): Promise<AuthR
     const supabase = await createClient();
 
     // 1. Lookup Email by Username
-    const userRecord = await db.query.users.findFirst({
-        where: eq(users.username, username)
-    });
+    let userRecord;
+    try {
+        userRecord = await db.query.users.findFirst({
+            where: eq(users.username, username)
+        });
+    } catch (dbError) {
+        console.error("Login DB Lookup Error:", dbError);
+        return { error: "Service unavailable. Please check connection." };
+    }
 
     if (!userRecord) {
         return { error: "Invalid username or pin." }; // Generic error
@@ -182,9 +199,14 @@ export async function resetPin(newPin: string): Promise<AuthResponse> {
     if (updateError) return { error: updateError.message };
 
     // 2. Update DB Hash (for verification)
-    await db.update(users)
-        .set({ pin_hash: hashPin(newPin) })
-        .where(eq(users.id, user.id));
+    try {
+        await db.update(users)
+            .set({ pin_hash: hashPin(newPin) })
+            .where(eq(users.id, user.id));
+    } catch (dbError) {
+        console.error("Reset Pin DB Error:", dbError);
+        return { error: "Failed to update pin in database." };
+    }
 
     return { success: true, message: "Pin reset successfully." };
 }

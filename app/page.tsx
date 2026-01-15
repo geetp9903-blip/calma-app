@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
+import Image from "next/image";
+
 export default async function Home() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -14,13 +16,16 @@ export default async function Home() {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-black p-6 font-sans">
       {/* Branding */}
-      <div className="w-20 h-20 bg-calma-blue-500 rounded-3xl flex items-center justify-center mb-8 shadow-2xl shadow-calma-blue-500/30 ring-1 ring-white/20 animate-in fade-in zoom-in duration-700">
-        <div className="w-10 h-10 border-2 border-white rounded-full opacity-80" />
+      <div className="mb-4 animate-in fade-in zoom-in duration-700">
+        <Image
+          src="/assets/Calma_Alt_Typographic.png"
+          alt="Calma"
+          width={300}
+          height={100}
+          priority
+          className="h-auto w-auto max-w-[280px] md:max-w-xs drop-shadow-xl"
+        />
       </div>
-
-      <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-center text-slate-900 dark:text-white mb-4 animate-in slide-in-from-bottom-4 duration-700 delay-100">
-        Calma
-      </h1>
       <p className="text-xl text-slate-500 dark:text-slate-400 text-center max-w-md mb-12 animate-in slide-in-from-bottom-4 duration-700 delay-200">
         Clarity in motion. <br />A task scheduler for the focused mind.
       </p>

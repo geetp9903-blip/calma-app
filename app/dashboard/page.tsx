@@ -8,6 +8,9 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { startOfDay, endOfDay, parseISO } from "date-fns";
 import { toUTC } from "@/lib/date-utils";
+import { db } from "@/lib/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
 
 interface PageProps {
     searchParams: Promise<{ date?: string }>;
@@ -20,6 +23,20 @@ export default async function DashboardPage(props: PageProps) {
 
     if (!user) {
         redirect("/login");
+    }
+
+    // Fetch User Profile for Greeting
+    let username = "Creator";
+    try {
+        const userProfile = await db.query.users.findFirst({
+            where: eq(users.id, user.id)
+        });
+        if (userProfile?.username) {
+            username = userProfile.username;
+        }
+    } catch (error) {
+        console.error("Failed to fetch user profile:", error);
+        // Fallback to "Creator" is already set
     }
 
     // Date Logic (URL -> Date -> UTC Range)
@@ -55,7 +72,7 @@ export default async function DashboardPage(props: PageProps) {
             {/* Header Shell */}
             <header className="px-6 pt-12 pb-2">
                 <p className="text-slate-500 text-sm font-medium mb-1">Good Morning,</p>
-                <h1 className="text-2xl font-bold text-foreground">Creator</h1>
+                <h1 className="text-2xl font-bold text-foreground">Hello {username}</h1>
             </header>
 
             <main className="px-4 space-y-4">
